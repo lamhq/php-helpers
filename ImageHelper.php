@@ -1,5 +1,5 @@
 <?php
-namespace lamhq\helpers;
+namespace lamhq\php\helpers;
 
 /**
  * @author Lam Huynh <lamhq.com>
