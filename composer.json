@@ -1,6 +1,6 @@
 {
-    "name": "lamhq/image-helper",
-    "description": "Helper functions for manipulating image",
+    "name": "lamhq/php-helpers",
+    "description": "Helper functions for php",
     "require": {
     },
     "autoload": {
