@@ -1,0 +1,11 @@
+{
+    "name": "lamhq/image-helper",
+    "description": "Helper functions for manipulating image",
+    "require": {
+    },
+    "autoload": {
+        "psr-4": {
+            "lamhq\\helpers\\": ""
+        }
+    }
+}
