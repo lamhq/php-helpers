@@ -15,19 +15,19 @@ class ImageHelper {
 	 * @param array $options the options in terms of name-value pairs. The following options are specially handled:
 	 * - width: int, width of destination image
 	 * - height: int, height of destination image
-	 * - pad: bool, whether to fill the gap in destination image with padding. if not, crop the edge of source image to fill the dimension
+	 * - fit: bool, whether to fill the gap with bgColor. if not, crop the edge of source image to fill the dimension
 	 * - watermarkFile: string, file path to watermark file
 	 * - bgColor: string, hexa color code for padding
 	 */
 	static public function resize($src, $dst, $options=[]) {
-		if ( is_file($dst) || !is_file($src) ) return false;
 		if ( !file_exists(dirname($dst)) )
 			mkdir(dirname($dst), 0777, true);
 
+		// load setting
 		$setting = array_merge(array(
 			'width' => null,
 			'height' => null,
-			'pad' => true,
+			'fit' => true,
 			'watermarkFile' => null,
 			'bgColor' => '#ffffff'
 		), $options);
@@ -35,87 +35,83 @@ class ImageHelper {
 		list($r, $g, $b) = self::hexToRGB($bgColor);
 
 		// load image from disk
-		$imageType = pathinfo($src, PATHINFO_EXTENSION);
-		switch ($imageType) {
-			case 'gif':
+		$type = exif_imagetype($src);
+		switch ($type) {
+			case IMAGETYPE_GIF:
 				$old = imagecreatefromgif($src);
 				break;
-			case 'jpg':
-			case 'jpeg':
+			case IMAGETYPE_JPEG:
 				$old = imagecreatefromjpeg($src);
 				break;
-			case 'png':
+			case IMAGETYPE_PNG:
 				$old = imagecreatefrompng($src);
 				break;
 			default:
-				return;
+				return false;
 				break;
 		}
+
 		// auto rotate image
-		if ( function_exists('exif_read_data') ) {
-			$exif = @exif_read_data($src);
+		$exif = exif_read_data($src);
+		if (isset($exif['Orientation'])) {
 			$color = imagecolorallocate($old, $r, $g, $b);
-			if(!empty($exif['Orientation'])) {
-				switch($exif['Orientation']) {
-					case 3:
-						$old = imagerotate($old,180,$color);
-						break;
-					case 6:
-						$old = imagerotate($old,-90,$color);
-						break;
-					case 8:
-						$old = imagerotate($old,90,$color);
-						break;
-				}
+			switch($exif['Orientation']) {
+				case 3:
+					$old = imagerotate($old,180,$color);
+					break;
+				case 6:
+					$old = imagerotate($old,-90,$color);
+					break;
+				case 8:
+					$old = imagerotate($old,90,$color);
+					break;
 			}
 		}
 
 		// resize image
-		$oldWidth = imagesx($old);
-		$oldHeight = imagesy($old);
-		if (!$width && !$height) {
-			$newWidth = $oldWidth;
-			$newHeight = $oldHeight;
-		} else {
-			$newWidth = $width ? $oldWidth*$height/$oldHeight : $width;
-			$newHeight = $height ? $oldHeight*$width/$oldWidth : $height;
+		$ow = imagesx($old);
+		$oh = imagesy($old);
+		$w = $width;
+		$h = $height;
+		if (!$w && !$h) {
+			$w = $ow;
+			$h = $oh;
+		} elseif (!$w) {
+			$w = $ow * $h / $oh;
+		} elseif (!$h) {
+			$h = $oh * $w / $ow;
 		}
-		$new = imagecreatetruecolor($newWidth, $newHeight);
+		$new = imagecreatetruecolor($w, $h);
 		$color = imagecolorallocate($new, $r, $g, $b);
 		imagefill($new, 0, 0, $color);
-		if ($pad) {
+		if ($fit) {
 			// fit image to extract dimension (add padding)
-			if (($oldWidth / $oldHeight) >= ($newWidth / $newHeight)) {
-				// by width
-				$nw = $newWidth;
-				$nh = $oldHeight * ($newWidth / $oldWidth);
+			if (($ow / $oh) >= ($w / $h)) {
+				$nw = $w;
+				$nh = $w * ($oh / $ow);
 				$nx = 0;
-				$ny = round(abs($newHeight - $nh) / 2);
+				$ny = round(abs($h - $nh) / 2);
 			} else {
-				// by height
-				$nw = $oldWidth * ($newHeight / $oldHeight);
-				$nh = $newHeight;
-				$nx = round(abs($newWidth - $nw) / 2);
+				$nh = $h;
+				$nw = $h * ($ow / $oh);
+				$nx = round(abs($w - $nw) / 2);
 				$ny = 0;
 			}
-			imagecopyresampled($new, $old, $nx, $ny, 0, 0, $nw, $nh, $oldWidth, $oldHeight);
+			imagecopyresampled($new, $old, $nx, $ny, 0, 0, $nw, $nh, $ow, $oh);
 		} else {
 			// fill image to extract dimension (crop)
-			if (($oldWidth / $oldHeight) >= ($newWidth / $newHeight)) {
-				// by height
-				$oh = $oldHeight;
-				$ow = $oh * ($newWidth / $newHeight);
-				$ox = round(abs($ow - $oldWidth) / 2);  // crop from center
+			if (($ow / $oh) >= ($w / $h)) {
+				$nh = $h;
+				$nw = $ow * ($ow / $oh);
+				$ox = round(abs($w - $nw) / 2);
 				$oy = 0;
 			} else {
-				// by width
-				$ow = $oldWidth;
-				$oh = $ow * ($newHeight / $newWidth);
-				// $oy = round(abs($oh - $oldHeight) / 2);  // crop from middle
-				$oy = 0;
+				$nw = $w;
+				$nh = $nw * ($oh / $ow);
+				$oy = round(abs($h - $nh) / 2);
 				$ox = 0;
 			}
-			imagecopyresampled($new, $old, 0, 0, $ox, $oy, $newWidth, $newHeight, $ow, $oh);
+			imagecopyresampled($new, $old, 0, 0, $ox, $oy, $nw, $nh, $ow, $oh);
 		}
 
 		// add watermark to source image
@@ -123,15 +119,14 @@ class ImageHelper {
 			self::addWatermark($new, $watermarkFile);
 
 		// save image to disk
-		switch ($imageType) {
-			case 'gif':
+		switch ($type) {
+			case IMAGETYPE_GIF:
 				$old = imagegif($new, $dst);
 				break;
-			case 'jpg':
-			case 'jpeg':
+			case IMAGETYPE_JPEG:
 				$old = imagejpeg($new, $dst);
 				break;
-			case 'png':
+			case IMAGETYPE_PNG:
 				$old = imagepng($new, $dst);
 				break;
 			default:
