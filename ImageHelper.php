@@ -52,19 +52,21 @@ class ImageHelper {
 		}
 
 		// auto rotate image
-		$exif = exif_read_data($src);
-		if (isset($exif['Orientation'])) {
-			$color = imagecolorallocate($old, $r, $g, $b);
-			switch($exif['Orientation']) {
-				case 3:
-					$old = imagerotate($old,180,$color);
-					break;
-				case 6:
-					$old = imagerotate($old,-90,$color);
-					break;
-				case 8:
-					$old = imagerotate($old,90,$color);
-					break;
+		if ($type==IMAGETYPE_JPEG) {
+			$exif = exif_read_data($src);
+			if (isset($exif['Orientation'])) {
+				$color = imagecolorallocate($old, $r, $g, $b);
+				switch($exif['Orientation']) {
+					case 3:
+						$old = imagerotate($old,180,$color);
+						break;
+					case 6:
+						$old = imagerotate($old,-90,$color);
+						break;
+					case 8:
+						$old = imagerotate($old,90,$color);
+						break;
+				}
 			}
 		}
 
