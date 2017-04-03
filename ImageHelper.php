@@ -53,7 +53,7 @@ class ImageHelper {
 
 		// auto rotate image
 		if ($type==IMAGETYPE_JPEG) {
-			$exif = exif_read_data($src);
+			$exif = @exif_read_data($src);
 			if (isset($exif['Orientation'])) {
 				$color = imagecolorallocate($old, $r, $g, $b);
 				switch($exif['Orientation']) {
