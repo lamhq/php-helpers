@@ -73,48 +73,58 @@ class ImageHelper {
 		// resize image
 		$ow = imagesx($old);
 		$oh = imagesy($old);
-		$w = $width;
-		$h = $height;
-		if (!$w && !$h) {
-			$w = $ow;
-			$h = $oh;
-		} elseif (!$w) {
-			$w = $ow * $h / $oh;
-		} elseif (!$h) {
-			$h = $oh * $w / $ow;
+		$nw = $width;
+		$nh = $height;
+		// auto calculate the missing width or height in parameters
+		if (!$nw && !$nh) {
+			$nw = $ow;
+			$nh = $oh;
+		} elseif (!$nw) {
+			$nw = $nh * $ow / $oh;
+		} elseif (!$nh) {
+			$nh = $nw * $oh / $ow;
 		}
-		$new = imagecreatetruecolor($w, $h);
+		$new = imagecreatetruecolor($nw, $nh);
 		$color = imagecolorallocate($new, $r, $g, $b);
 		imagefill($new, 0, 0, $color);
 		if ($fit) {
 			// fit image to extract dimension (add padding)
-			if (($ow / $oh) >= ($w / $h)) {
-				$nw = $w;
-				$nh = $w * ($oh / $ow);
-				$nx = 0;
-				$ny = round(abs($h - $nh) / 2);
+			$sx = 0;
+			$sy = 0;
+			$sw = $ow;
+			$sh = $oh;
+			// landscape to portrait
+			if (($sw / $sh) >= ($nw / $nh)) {
+				$dw = $nw;
+				$dh = $nw * ($sh / $sw);
+				$dx = 0;
+				$dy = round(abs($nh - $dh) / 2);
 			} else {
-				$nh = $h;
-				$nw = $h * ($ow / $oh);
-				$nx = round(abs($w - $nw) / 2);
-				$ny = 0;
+				$dw = $nh * ($sw / $sh);
+				$dh = $nh;
+				$dx = round(abs($nw - $dw) / 2);
+				$dy = 0;
 			}
-			imagecopyresampled($new, $old, $nx, $ny, 0, 0, $nw, $nh, $ow, $oh);
 		} else {
 			// fill image to extract dimension (crop)
-			if (($ow / $oh) >= ($w / $h)) {
-				$nh = $h;
-				$nw = $ow * ($ow / $oh);
-				$ox = round(abs($w - $nw) / 2);
-				$oy = 0;
+			$dx = 0;
+			$dy = 0;
+			$dw = $nw;
+			$dh = $nh;
+			// landscape to portrait
+			if (($ow / $oh) >= ($dw / $dh)) {
+				$sw = $oh * ($dw / $dh);
+				$sh = $oh;
+				$sx = round(abs($ow - $sw) / 2);
+				$sy = 0;
 			} else {
-				$nw = $w;
-				$nh = $nw * ($oh / $ow);
-				$oy = round(abs($h - $nh) / 2);
-				$ox = 0;
+				$sw = $ow;
+				$sh = $ow * ($dh / $dw);
+				$sx = 0;
+				$sy = round(abs($oh - $sh) / 2);
 			}
-			imagecopyresampled($new, $old, 0, 0, $ox, $oy, $nw, $nh, $ow, $oh);
 		}
+		imagecopyresampled($new, $old, $dx, $dy, $sx, $sy, $dw, $dh, $sw, $sh);
 
 		// add watermark to source image
 		if ($watermarkFile)
